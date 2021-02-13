@@ -1,12 +1,20 @@
 .data 
 	 MainMessage : .asciiz "Enter a Valid Number of the Menus \n1- Search for Request by Priority \n2- Delete all Requests of same Priority \n3- Process all Requests of same Priority \n4- Empty All lists \n5- Insert Requests \n6- print All \n-1 to end the program\n"
-	firstMessage : .asciiz "Enter The Request Priority that you wish to search : \n"
+	firstMessage : .asciiz "Enter The Request Priority that you wish to search : "
 	secondMessage : .asciiz ""
 	thirdMessage : .asciiz "Not Found\n"
 	fourthMessage : .asciiz "Enter The Request Priority that you wish to Delete \n"
 	fifthMessage : .asciiz "Enter The Request Priority that you wish to Process \n"
 	sixthMessage : .asciiz "Please Enter Valid menu\n"
-	
+	message: .asciiz "Binary Search Value "
+	equal:.asciiz "Inside Equal "
+	smaller:.asciiz "Inside smaller "
+	greater:.asciiz "Inside Greater "
+	innerBinaryMessage:.asciiz "Paramter passed "
+	sizeOfListsArray: .word 0
+			  .word 4
+		     	  .word 4
+		     	  .word 4
 	#request size is 20 byte and each row contain 20 request then each row will be 400 byte to cover all requests we need
 	# 4 rows cause we have 4 lists
 	array:  .space 12
@@ -14,14 +22,15 @@
 		.space 12
 		.space 12
 
-	colNumber: .word 1 #number of cols in 2d array
- 	rowNumber: .word 4 #number of rows in 2d array
+	colNumber: .word 4 #number of cols in 2d array
+ 	rowNumber: .word 1 #number of rows in 2d array
 	.eqv requestSize 12 #size of one request
 	prompt: .asciiz "enter request: "  #message that display when user enter request
 	end: .asciiz "All lists are empty"
 	message2: .asciiz "enter number :"
 	newLine: .asciiz "\n" #new line
 	space: .asciiz  " " #space
+	binarySearchMessage:.asciiz "The Index of Search value is "
 .text 
 	main :
 	la $s2 array #load array addresse in s
@@ -70,34 +79,31 @@
 	
 	
 	ifStatement1 : 
-		beq $t0, $t2, ifStatement1_PrintMessage
+		#Call binary Search and return result WIth Message
+		li $v0 ,4
+		la $a0, firstMessage
+		syscall
 		
 		li $v0 , 5
 		syscall
+		move $a0, $v0
 		
-		move $v0,$t7
-		
-		bne $t7,$t1 , ifStatement1_found
-		beq $t7,$t1 , ifStatement1_notfound
-		
-		li $v0,10
+		jal binarySearch
+		move $t0, $v0 #get the return value
+		#print message
+		li $v0, 4
+		la $a0, binarySearchMessage
 		syscall
-	
-	
-	#print message for """ifStatement1"""
-	ifStatement1_PrintMessage :
-		li $v0,4
-		la $a0,firstMessage
+		#print the result
+		li $v0,1
+		move $a0, $t0
 		syscall
-		
-	ifStatement1_found: 
-		li $v0,10
+		#print new line
+		li $v0, 4
+		la $a0, newLine
 		syscall
 		
-	ifStatement1_notfound :
-		li $v0,4
-		la $a0,thirdMessage
-		syscall
+		j main
 		
 	ifStatement2 :
 		li $v0,4
@@ -588,7 +594,158 @@ quicksort:
 	addi $sp, $sp,16				#restore stack
 	jr $ra	
 	
+	#################################### 	
+ #Binary Search on one LIST
+ 	binarySearch:
+ 	move $s4 , $a0 # Get the Target Priority
+ 	
+ 	#Print Passed Value
+ 	li $v0, 4
+ 	la $a0, innerBinaryMessage
+ 	syscall
+ 	
+ 	li $v0, 1
+ 	move $a0, $s4
+ 	syscall
+ 
+ 	li $v0, 4
+ 	la $a0, newLine
+ 	syscall
+ 	
+ 	
+ 	la $s7, array #load the 2d Array in s7
+ 	li $t0, 0 #index for row
+ 	li $s1, 3 #index for end Of List
+ 	li $s2, 0 #start of list
+
+		whileStillExitElements:
+				bge $s2, $s1, endBinarySearch #Branch if st >= end ie no elements in search RAnge
+				add $t3, $s2, $s1 #get sum to get middle in next instruction
+				div $t3, $t3, 2 #calculate middle in t3
+				move $s5, $t3 # move the indx of middle
+				mul $t4, $t0, 4 #rowidx * colm size and store in t4 for further calcu
+				add $t4, $t3, $zero #add the colm indx which is the middle 
+				mul $t4, $t4, requestSize #add the Strutcure size
+				add $t4, $t4, $s7 #add the bass addresss of array
+				##print the middle
+				li $v0, 1
+				lw $a0, 0($t4)
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, newLine
+				syscall
+				#Load the priority of Middle
+				lw $s6, 0($t4)
+				beq $s6, $s4, ifEqual # t7 contain the target priority
+				blt $s6, $s4, ifSmaller #branch if Target,priorty < middle.priorty
+				bgt $s6, $s4, ifGreater # branch if target.priorty > middle.priorty
+				 
 	
+	endBinarySearch:
+	#getting the results in v0
+	move $v0, $s1 #start or end will stop when they equal each other
+ 	jr $ra
+ 	
+ 	ifEqual:
+ 	add $s1, $s5, $zero #make Start of list at the current middle
+
+ 			#print element
+				li $v0, 4
+				la $a0, equal
+				syscall
+				####
+ 				li $v0, 1
+				move $a0, $s2
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, space
+				syscall
+				li $v0, 1
+				move $a0, $s1
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, newLine
+				syscall
+ 	j endBinarySearch #return to binarySearch
+ 	ifGreater:
+ 	sub $s1, $s5, $1 #make end of list equal mid - 1
+ 	#print element
+				li $v0, 4
+				la $a0, greater
+				syscall
+				####
+
+ 				li $v0, 1
+				move $a0, $s2
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, space
+				syscall
+				li $v0, 1
+				move $a0, $s1
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, newLine
+				syscall
+ 	j whileStillExitElements #return to binarySearch
+ 	ifSmaller:
+ 	add $s2, $s5, 1 #make start of list = mid + 1
+ 	#print element
+				li $v0, 4
+				la $a0, smaller
+				syscall
+				####
+ 				li $v0, 1
+				move $a0, $s2
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, space
+				syscall
+				li $v0, 1
+				move $a0, $s1
+				syscall
+				#print space
+				li $v0, 4
+				la $a0, newLine
+				syscall
+ 	j whileStillExitElements #return to binarySearch
+ 	
+
+ 	
+ ######################End Binary Search
+ 	
+ 	#Find First Free List
+ 	FFFL:
+ 	#try to intialize t2,t4 with the number of list
+ 	
+ 	la $s6, sizeOfListsArray
+ 	li $s3, 0
+ 	Loop:
+ 		sll $t1, $s3, 2 #multipy 4 by left shift 2
+		add $t1, $t1, $s6 #add index address to base address
+		lw $s2,0($t1) # load the Address after adding to the base
+		blt $s2, 4, exit2# branch if less than 20 desired list 
+		addi $s3, $s3, 1#else add idx + 1
+		j Loop #jump to loop while not found list less than 20 element
+	#take the arguments and return to caller idx of list and the current size of the first free list
+ 	exit2:
+ 	move $v0,$s3
+ 	move $v1, $s2
+ 	#restore all values used in fffl
+	lw $t1, 0($sp)
+	lw $s6, 4($sp)
+	lw $s3, 8($sp)
+	lw $s2, 12($sp)
+	#return to caller adderres
+ 	jr $ra
+ ################################## #end of function
+ 
 
 		
 	
